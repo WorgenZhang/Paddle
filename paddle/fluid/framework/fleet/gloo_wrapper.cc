@@ -71,6 +71,18 @@ void HdfsStore::set(const std::string& key, const std::vector<char>& data) {
     }
   }
   paddle::framework::fs_mv(tmp, path);
+  auto start = std::chrono::steady_clock::now();
+  while (paddle::framework::fs_exists(path) == false) {
+    VLOG(0) << "HdfsStore::set fs_mv retrying...";
+    paddle::framework::fs_mv(tmp, path);
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::steady_clock::now() - start);
+    if (wait_timeout_ != gloo::kNoTimeout && elapsed > wait_timeout_) {
+      PADDLE_THROW(paddle::platform::errors::ExecutionTimeout(
+          "fs_mv failed, tmp: %s, path: %s", tmp, path));
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(wait_sleep_ms_));
+  }
 #endif
 }
 
@@ -140,6 +152,7 @@ void HdfsStore::wait(const std::vector<std::string>& keys,
   auto start = std::chrono::steady_clock::now();
   std::vector<bool> check_key_status(keys.size(), false);
   while (!Check(keys, &check_key_status)) {
+    VLOG(0) << "HdfsStore::wait checking repeatedly...";
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::steady_clock::now() - start);
     if (wait_timeout_ != gloo::kNoTimeout && elapsed > wait_timeout_) {
@@ -254,6 +267,25 @@ void ParallelConnectContext::connectFullMesh(
             }
 
             auto addr = extractAddress(allAddrs, i);
+            if (addr.empty()) {
+              VLOG(0) << "peer address is null";
+            }
+            auto start = std::chrono::steady_clock::now();
+            std::chrono::seconds connect_wait_timeout_ =
+                std::chrono::seconds(600);
+            while (true) {
+              auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                  std::chrono::steady_clock::now() - start);
+              if (elapsed > connect_wait_timeout_) {
+                break;
+              }
+              try {
+                transportContext->getPair(i)->connect(addr);
+                break;
+              } catch (...) {
+                VLOG(0) << "gloo connect failed, retrying...";
+              }
+            }
             transportContext->getPair(i)->connect(addr);
           }
         },
