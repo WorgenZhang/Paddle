@@ -107,7 +107,7 @@ class BasicAucCalculator {
   double _rmse = 0;
   double _actual_ctr = 0;
   double _predicted_ctr = 0;
-  double _size;
+  double _size = 0;
   double _user_cnt = 0;
   double _bucket_error = 0;
   std::unordered_set<uint64_t> _uid_keys;
