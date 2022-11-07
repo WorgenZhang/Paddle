@@ -87,11 +87,24 @@ def init_metric(metric_ptr,
                 metric_runner['label'], metric_runner['target'],
                 cmatch_rank_var, mask_var, metric_runner['uid'], phase,
                 cmatch_rank_group, ignore_rank, bucket_size)
+        elif metric_runner['method'] == 'PNCalculator':
+            metric_ptr.init_metric(
+                metric_runner['method'], metric_runner['name'],
+                metric_runner['label'], metric_runner['target'],
+                cmatch_rank_var, mask_var, metric_runner['uid'], phase,
+                cmatch_rank_group, ignore_rank, bucket_size)
+        elif metric_runner['method'] == 'PNTypeCalculator':
+            metric_ptr.init_metric(
+                metric_runner['method'], metric_runner['name'],
+                metric_runner['label'], metric_runner['target'],
+                metric_runner['cmatch_var'], mask_var, metric_runner['uid'],
+                phase, metric_runner['cmatch_group'],
+                ignore_rank, bucket_size)
         else:
             metric_ptr.init_metric(
                 metric_runner['method'], metric_runner['name'],
                 metric_runner['label'], metric_runner['target'],
-                cmatch_rank_var, mask_var, phase, cmatch_rank_group,
+                cmatch_rank_var, mask_var, uid_var, phase, cmatch_rank_group,
                 ignore_rank, bucket_size)
 
 
@@ -103,6 +116,19 @@ def print_metric(metric_ptr, name):
         metric = metric_ptr.get_wuauc_metric_msg(name)
         monitor_msg = "%s: User Count=%.0f INS Count=%.0f UAUC=%.6f WUAUC=%.6f "\
            % (name, metric[0], metric[1], metric[4], metric[5])
+    elif name.find("type_pn") != -1:
+        metrics = metric_ptr.get_pn_type_metric_msg(name)
+        for i in range(len(metrics)):
+            if i == 0:
+                monitor_msg = "%s: Average PN is %.6f , Average WPN is %.6f, with ins num %.0f (postive pairs: %.0f negtive pairs: %.0f) (label_avg: %.6f, pred_avg: %.6f)\n"\
+                                % (name, metrics[0][0], metrics[0][1], metrics[0][2], metrics[0][3], metrics[0][4], metrics[0][5], metrics[0][6])
+            else:
+                monitor_msg += "%s for resource type %d: Average PN is %.6f , Average WPN is %.6f, with ins num %.0f (postive pairs: %.0f negtive pairs: %.0f) (label_avg: %.6f, pred_avg: %.6f)\n"\
+                % (name, i - 1, metrics[i][0], metrics[i][1], metrics[i][2], metrics[i][3], metrics[i][4], metrics[i][5], metrics[i][6])
+    elif name.find("pn") != -1:
+        metric = metric_ptr.get_pn_metric_msg(name)
+        monitor_msg = "%s: Average PN is %.6f with ins num %.0f (postive pairs: %.0f negtive pairs: %.0f) "\
+           % (name, metric[0], metric[1], metric[2], metric[3])
     else:
         metric = metric_ptr.get_metric_msg(name)
         monitor_msg = "%s: AUC=%.6f BUCKET_ERROR=%.6f MAE=%.6f RMSE=%.6f "\

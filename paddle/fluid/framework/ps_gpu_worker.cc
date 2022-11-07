@@ -22,6 +22,7 @@ limitations under the License. */
 #include "paddle/fluid/platform/cuda_graph_with_memory_pool.h"
 #include "paddle/fluid/platform/profiler.h"
 #include "paddle/fluid/platform/profiler/event_tracing.h"
+#include "paddle/fluid/framework/fleet/metrics.h"
 
 #if (defined PADDLE_WITH_NCCL || defined PADDLE_WITH_RCCL) && \
     (defined PADDLE_WITH_PSLIB)
@@ -353,6 +354,20 @@ int PSGPUWorker::OpRunAndShapeCheck(OperatorBase& op,
     return 0;
 }
 
+/**
+ * @brief add auc monitor
+ */
+inline void AddAucMonitor(const Scope* scope, const platform::Place& place) {
+  auto metric_ptr = Metric::GetInstance();
+  auto& metric_list = metric_ptr->GetMetricList();
+  for (auto iter = metric_list.begin(); iter != metric_list.end(); iter++) {
+    auto* metric_msg = iter->second;
+    if (metric_ptr->Phase() != metric_msg->MetricPhase()) {
+      continue;
+    }
+    metric_msg->add_data(scope, place);
+  }
+}
 
 void PSGPUWorker::TrainFiles() {
   VLOG(0) << "Begin to train files";
@@ -530,6 +545,11 @@ void PSGPUWorker::TrainFiles() {
     }
     if (need_dump_param_ && thread_id_ == 0) {
       DumpParam(*thread_scope, batch_cnt);
+    }
+
+    // add data for MetricMsg
+    if (Metric::GetInstance() != nullptr) {
+      AddAucMonitor(thread_scope, place_);
     }
 
     for (std::string& var_name : check_nan_var_names_) {
