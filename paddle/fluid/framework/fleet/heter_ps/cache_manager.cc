@@ -765,7 +765,7 @@ void CacheManager::prepare_next_batch(int worker_id) {
   AnyDeviceGuard guard(dev_id);
 
   current_batch_fidseq_->d_fidseqs[worker_id] =
-      malloc_l3_or_gm<uint32_t>(current_batch_fidseq_->h_bucket_sizes.size(), dev_id);
+      malloc_l3_or_gm<uint32_t>(current_batch_fidseq_->h_fidseq.size(), dev_id);
   current_batch_fidseq_->d_bucket_sizes[worker_id] =
       malloc_l3_or_gm<uint32_t>(current_batch_fidseq_->h_bucket_sizes.size(), dev_id);
   current_batch_fidseq_->d_fidseq_buckets[worker_id] =
